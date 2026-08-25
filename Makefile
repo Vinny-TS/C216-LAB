@@ -20,3 +20,9 @@ run:
 
 clean:
 	@echo "Limpando caches e arquivos temporários..."
+	rm -rf $(BACKEND_DIR)/__pycache__
+	rm -rf $(BACKEND_DIR)/.pytest_cache
+	rm -rf $(BACKEND_DIR)/.mypy_cache
+	rm -rf $(BACKEND_DIR)/.ruff_cache
+	rm -rf $(BACKEND_DIR)/build
+	rm -rf $(BACKEND_DIR)/dist
