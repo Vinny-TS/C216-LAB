@@ -4,7 +4,7 @@ BACKEND_DIR = backend
 COMPOSE = docker compose
 
 # O .PHONY declara quais targets não são arquivos físicos, mas sim comandos
-.PHONY: help install run clean
+.PHONY: help install run clean up down restart logs ps test
 
 # O target 'help' lista os comandos disponíveis no terminal
 help:
@@ -21,6 +21,9 @@ help:
 
 install:
 	cd $(BACKEND_DIR) && $(POETRY) install
+
+test:
+	cd $(BACKEND_DIR) && $(POETRY) run pytest -v
 
 run:
 	cd $(BACKEND_DIR) && $(POETRY) run uvicorn main:app --reload
