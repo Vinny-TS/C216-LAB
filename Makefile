@@ -12,6 +12,7 @@ help:
 	@echo "  make help    - Exibe esta mensagem de ajuda"
 	@echo "  make install - Instala as dependencias usando o Poetry"
 	@echo "  make run     - Inicia o servidor FastAPI (Uvicorn)"
+	@echo "  make test    - Executa a suite de testes unitarios (Pytest)"
 	@echo "  make clean   - Limpa caches e arquivos temporários"
 	@echo "  make up      - Inicia os containers do Docker"
 	@echo "  make down    - Para os containers do Docker"
