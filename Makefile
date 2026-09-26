@@ -4,7 +4,7 @@ BACKEND_DIR = backend
 COMPOSE = docker compose
 
 # O .PHONY declara quais targets não são arquivos físicos, mas sim comandos
-.PHONY: help install run clean
+.PHONY: help install run clean up down restart logs ps test
 
 # O target 'help' lista os comandos disponíveis no terminal
 help:
@@ -12,6 +12,7 @@ help:
 	@echo "  make help    - Exibe esta mensagem de ajuda"
 	@echo "  make install - Instala as dependencias usando o Poetry"
 	@echo "  make run     - Inicia o servidor FastAPI (Uvicorn)"
+	@echo "  make test    - Executa a suite de testes unitarios (Pytest)"
 	@echo "  make clean   - Limpa caches e arquivos temporários"
 	@echo "  make up      - Inicia os containers do Docker"
 	@echo "  make down    - Para os containers do Docker"
@@ -21,6 +22,9 @@ help:
 
 install:
 	cd $(BACKEND_DIR) && $(POETRY) install
+
+test:
+	cd $(BACKEND_DIR) && $(POETRY) run pytest -v
 
 run:
 	cd $(BACKEND_DIR) && $(POETRY) run uvicorn main:app --reload

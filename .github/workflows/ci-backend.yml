@@ -1,0 +1,35 @@
+name: CI Backend
+
+on:
+  push:
+    branches: [ "aulas", "pratica-*" ]
+  pull_request:
+    branches: [ "aulas" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.7"
+
+      - name: Instalar Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Instalar Dependências
+        working-directory: ./backend
+        run: |
+          poetry install --no-root
+
+      - name: Executar Pytest
+        working-directory: ./backend
+        run: |
+          poetry run pytest -v
