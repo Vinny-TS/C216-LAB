@@ -2,7 +2,7 @@
 
 Repositório estruturado para o desenvolvimento das atividades práticas da unidade curricular C216 (Sistemas Distribuídos) do INATEL.
 
-O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada via **Docker e Docker Compose**, dispondo de persistência com **PostgreSQL**, automação de tarefas com **GNU Make**, suíte de testes unitários com **Pytest** e integração contínua (CI) automatizada através do **GitHub Actions**.
+O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada via **Docker e Docker Compose**, dispondo de persistência com **PostgreSQL**, automação de tarefas com **GNU Make**, suíte de testes unitários e de integração com **Pytest** e integração contínua (CI) automatizada através do **GitHub Actions**.
 
 ## Estrutura do Repositório
 
@@ -12,12 +12,37 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 │   └── workflows/
 │       └── ci-backend.yml
 ├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   ├── router.py
+│   │   │   └── routes/
+│   │   │       ├── __init__.py
+│   │   │       ├── books.py
+│   │   │       └── health.py
+│   │   ├── schemas/
+│   │   │   ├── __init__.py
+│   │   │   └── book.py
+│   │   └── services/
+│   │       ├── __init__.py
+│   │       └── book.py
 │   ├── tests/
 │   │   ├── __init__.py
-│   │   └── test_services.py
+│   │   ├── conftest.py
+│   │   ├── unit/
+│   │   │   ├── __init__.py
+│   │   │   ├── test_book_schema.py
+│   │   │   ├── test_book_service.py
+│   │   │   └── test_services.py
+│   │   └── integration/
+│   │       ├── __init__.py
+│   │       ├── conftest.py
+│   │       ├── test_books_api.py
+│   │       └── test_health_api.py
 │   ├── .dockerignore
 │   ├── Dockerfile
-│   ├── main.py
 │   ├── pyproject.toml
 │   ├── poetry.lock
 │   └── services.py
@@ -35,7 +60,7 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 - **Uvicorn**: Servidor ASGI para execução do FastAPI.
 - **Docker & Docker Compose**: Conteinerização do serviço e orquestração de múltiplos contêineres em rede isolada.
 - **PostgreSQL 16-Alpine**: Sistema de gestão de bases de dados relacional persistente.
-- **Pytest**: Framework para estruturação e execução de testes automatizados.
+- **Pytest**: Framework para estruturação e execução de testes automatizados unitários e de integração.
 - **GitHub Actions**: Plataforma de integração contínua para validação de testes a cada push e pull request.
 - **GNU Make**: Utilitário para automação de rotinas de desenvolvimento e operações.
 
@@ -50,7 +75,7 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 
 ### Prática 2: Conteinerização com Docker e Docker Compose
 
-- **Dockerfile Backend**: Criação do ficheiro `backend/Dockerfile` utilizando a imagem `python:3.11-slim`, desativação de ambientes virtuais redundantes no Poetry e configuração do processo principal com Uvicorn.
+- **Dockerfile Backend**: Criação do ficheiro `backend/Dockerfile` utilizando a imagem `python:3.11-slim`, desativação de ambientes virtuais redundantes no Poetry e configuração do processo principal com Uvicorn (`app.main:app`).
 - **Isolamento de Contexto**: Criação de `backend/.dockerignore` para evitar o envio de artefactos locais e caches para o daemon de build.
 - **Orquestração de Infraestrutura**: Configuração de `docker-compose.yml` na raiz do projeto com os serviços `backend` e `db` (PostgreSQL 16), volume nomeado para persistência de dados (`postgres_data`) e comunicação por DNS interno.
 - **Expansão do Makefile**: Adição de 5 comandos de orquestração: `make up`, `make down`, `make restart`, `make logs` e `make ps`.
@@ -58,9 +83,30 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 ### Prática 3: Testes Automatizados e Integração Contínua (CI)
 
 - **Dependências de Desenvolvimento**: Inclusão do `pytest` no grupo `dev` do Poetry.
-- **Suíte de Testes Unitários**: Criação de `backend/tests/test_services.py` com cobertura de asserções, cenários de erro via captura de exceções, parametrização de testes (`@pytest.mark.parametrize`) e isolamento de instâncias através de fixtures.
+- **Suíte de Testes Unitários**: Criação de testes unitários com cobertura de asserções, cenários de erro via captura de exceções, parametrização de testes (`@pytest.mark.parametrize`) e isolamento de instâncias através de fixtures.
 - **Automação de Testes**: Integração do comando `make test` ao `Makefile`.
-- **Pipeline de CI**: Configuração do fluxo `.github/workflows/ci-backend.yml` acionado em eventos de `push` e `pull_request`, executando o setup de Python, resolução de dependências com Poetry e validação da suíte Pytest no runner Ubuntu.
+- **Pipeline de CI**: Configuração do fluxo `.github/workflows/ci-backend.yml` acionado em eventos de `push` e `pull_request`.
+
+### Prática 4: Arquitetura em Camadas e Recurso de Livros
+
+- **Organização Modular (`backend/app/`)**: Estruturação em camadas bem definidas: `api/routes` (endpoints HTTP), `schemas` (modelos de validação Pydantic) e `services` (regras de negócio desacopladas da camada de transporte).
+- **Recurso de Livros (`/books`)**: Implementação de operações CRUD com métodos HTTP GET, POST, PUT, PATCH e DELETE, com validação de parâmetros de rota (`book_id`) e consulta (`author`, `limit`).
+- **Segregação de Testes**: Reestruturação das suítes de teste em `tests/unit/` (validação de schemas e services sem camada HTTP) e `tests/integration/` (chamadas de endpoints via `TestClient`).
+- **Enforcement de Suítes via Hook Pytest**: Hook `pytest_collection_modifyitems` no `conftest.py` raiz que aplica markers automáticos e assegura que nenhum teste seja executado fora das pastas designadas.
+- **Expansão de CI e Automação**: Adição dos comandos `make test-unit` e `make test-integration` e separação das suítes no fluxo do GitHub Actions.
+
+## Endpoints de Livros (`/books`)
+
+| Método | Rota | Parâmetros | Resposta | Descrição |
+|---|---|---|---|---|
+| `GET` | `/books` | query `author` (opcional), `limit` (1 a 100) | `200 OK` (lista de `Book`) | Lista livros cadastrados com suporte a filtros |
+| `GET` | `/books/{book_id}` | path `book_id` (> 0) | `200 OK` (`Book`) | Recupera detalhes de um livro específico |
+| `POST` | `/books` | body `BookCreate` | `201 Created` (`Book`) | Registra um novo livro |
+| `PUT` | `/books/{book_id}` | path `book_id` + body `BookUpdate` | `200 OK` (`Book`) | Substitui completamente os dados de um livro |
+| `PATCH` | `/books/{book_id}` | path `book_id` + body `BookPatch` | `200 OK` (`Book`) | Atualização parcial de campos específicos |
+| `DELETE` | `/books/{book_id}` | path `book_id` (> 0) | `204 No Content` | Remove um livro do catálogo |
+
+Documentação interativa do OpenAPI disponível em `http://localhost:8000/docs`.
 
 ## Instruções de Instalação e Execução
 
@@ -73,25 +119,25 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 
 ### Execução via Docker Compose (Recomendado)
 
-Para inicializar toda a pilha de serviços (API e base de dados PostgreSQL) em segundo plano, utilize o comando na raiz do repositório:
+Para inicializar toda a pilha de serviços (API e base de dados PostgreSQL) em segundo plano:
 
 ```bash
 make up
 ```
 
-Para monitorizar o estado de funcionamento dos contêineres e o mapeamento de portas:
+Para monitorizar o estado de funcionamento dos contêineres e portas:
 
 ```bash
 make ps
 ```
 
-Para acompanhar os registos de log emitidos pelos contêineres em tempo real:
+Para acompanhar os registos de log em tempo real:
 
 ```bash
 make logs
 ```
 
-Para encerrar a execução de todos os contêineres e redes criadas:
+Para encerrar a execução dos contêineres:
 
 ```bash
 make down
@@ -99,23 +145,25 @@ make down
 
 ## Execução dos Testes Automatizados
 
-Os testes unitários da aplicação foram construídos com Pytest e podem ser executados de forma local através de duas abordagens.
+A suíte de testes está dividida em testes unitários e de integração:
 
 ### 1. Via Makefile
 
-A partir da raiz do projeto:
-
 ```bash
-make test
+make test              # Executa toda a suite de testes (unitarios + integracao)
+make test-unit         # Executa apenas os testes unitarios (tests/unit)
+make test-integration  # Executa apenas os testes de integracao (tests/integration)
 ```
 
 ### 2. Diretamente via Poetry
 
-Dentro da diretoria `backend`:
+Dentro do diretório `backend`:
 
 ```bash
 cd backend
-poetry run pytest -v
+poetry run pytest -v                    # Suite completa
+poetry run pytest -v tests/unit         # Testes unitarios
+poetry run pytest -v tests/integration  # Testes de integracao
 ```
 
 ## Tabela de Comandos do Makefile
@@ -124,9 +172,11 @@ poetry run pytest -v
 |---|---|
 | `make help` | Exibe o menu com a lista de todos os comandos documentados no Makefile. |
 | `make install` | Instala as dependências declaradas no Poetry dentro da pasta `backend`. |
-| `make run` | Inicia o servidor Uvicorn da API localmente fora de contêineres. |
+| `make run` | Inicia o servidor Uvicorn da API localmente fora de contêineres (`app.main:app`). |
+| `make test` | Executa toda a suíte de testes automatizados via Poetry. |
+| `make test-unit` | Executa exclusivamente a suíte de testes unitários (`tests/unit`). |
+| `make test-integration` | Executa exclusivamente a suíte de testes de integração (`tests/integration`). |
 | `make clean` | Remove pastas de cache Python (`__pycache__`) e relatórios de testes. |
-| `make test` | Executa a suíte de testes unitários do Pytest via Poetry. |
 | `make up` | Constrói as imagens e inicia os contêineres do Docker Compose em segundo plano. |
 | `make down` | Para e remove os contêineres, redes e recursos gerados pelo Compose. |
 | `make restart` | Reinicia a execução dos contêineres em atividade. |
@@ -147,5 +197,6 @@ A execução ocorre num ambiente `ubuntu-latest` e segue a seguinte ordem de pas
 1. Checkout do código-fonte do repositório.
 2. Configuração da versão 3.11 do runtime do Python.
 3. Instalação e atualização do Poetry.
-4. Instalação de todas as dependências de desenvolvimento e produção do backend.
-5. Execução dos testes automatizados via `poetry run pytest -v`.
+4. Instalação de todas as dependências do backend.
+5. Execução dos testes unitários via `poetry run pytest -v tests/unit`.
+6. Execução dos testes de integração via `poetry run pytest -v tests/integration`.

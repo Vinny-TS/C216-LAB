@@ -17,7 +17,7 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14.7"
+          python-version: "3.11"
 
       - name: Instalar Poetry
         run: |
@@ -29,7 +29,12 @@ jobs:
         run: |
           poetry install --no-root
 
-      - name: Executar Pytest
+      - name: Executar Testes Unitarios
         working-directory: ./backend
         run: |
-          poetry run pytest -v
+          poetry run pytest -v tests/unit
+
+      - name: Executar Testes de Integracao
+        working-directory: ./backend
+        run: |
+          poetry run pytest -v tests/integration
