@@ -12,6 +12,11 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 │   └── workflows/
 │       └── ci-backend.yml
 ├── backend/
+│   ├── alembic/
+│   │   ├── versions/
+│   │   │   └── c1a2b3d4e5f6_cria_tabela_books.py
+│   │   ├── env.py
+│   │   └── script.py.mako
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py
@@ -22,6 +27,17 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 │   │   │       ├── __init__.py
 │   │   │       ├── books.py
 │   │   │       └── health.py
+│   │   ├── core/
+│   │   │   └── config.py
+│   │   ├── database/
+│   │   │   ├── base.py
+│   │   │   └── session.py
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   └── book.py
+│   │   ├── repositories/
+│   │   │   ├── __init__.py
+│   │   │   └── book.py
 │   │   ├── schemas/
 │   │   │   ├── __init__.py
 │   │   │   └── book.py
@@ -43,9 +59,13 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 │   │       └── test_health_api.py
 │   ├── .dockerignore
 │   ├── Dockerfile
+│   ├── alembic.ini
 │   ├── pyproject.toml
 │   ├── poetry.lock
 │   └── services.py
+├── docs/
+│   └── postgresql-sqlalchemy-migrations.md
+├── .env.example
 ├── .gitignore
 ├── docker-compose.yml
 ├── Makefile
@@ -54,10 +74,13 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 
 ## Tecnologias e Ferramentas
 
-- **Python 3.11**: Linguagem de programação base do serviço de backend.
+- **Python 3.11 / 3.12**: Linguagem de programação base do serviço de backend.
 - **Poetry**: Gestor de dependências e ambientes virtuais.
 - **FastAPI**: Framework web assíncrono para a construção da API.
 - **Uvicorn**: Servidor ASGI para execução do FastAPI.
+- **SQLAlchemy 2.0**: ORM moderno para mapeamento objeto-relacional com tipagem estática (`Mapped`, `mapped_column`).
+- **Alembic**: Ferramenta de versionamento de esquemas de banco de dados e migrações estruturadas.
+- **Psycopg 3**: Driver nativo de alta performance para PostgreSQL.
 - **Docker & Docker Compose**: Conteinerização do serviço e orquestração de múltiplos contêineres em rede isolada.
 - **PostgreSQL 16-Alpine**: Sistema de gestão de bases de dados relacional persistente.
 - **Pytest**: Framework para estruturação e execução de testes automatizados unitários e de integração.
@@ -94,6 +117,16 @@ O projeto consiste numa aplicação construída com **FastAPI** e conteinerizada
 - **Segregação de Testes**: Reestruturação das suítes de teste em `tests/unit/` (validação de schemas e services sem camada HTTP) e `tests/integration/` (chamadas de endpoints via `TestClient`).
 - **Enforcement de Suítes via Hook Pytest**: Hook `pytest_collection_modifyitems` no `conftest.py` raiz que aplica markers automáticos e assegura que nenhum teste seja executado fora das pastas designadas.
 - **Expansão de CI e Automação**: Adição dos comandos `make test-unit` e `make test-integration` e separação das suítes no fluxo do GitHub Actions.
+
+### Prática 5: Persistência com PostgreSQL, SQLAlchemy & Migrations
+
+- **Camada de Repositório (`repositories/book.py`)**: Centralização do acesso aos dados e abstração do ORM, separando persistência das regras de negócio.
+- **Modelos ORM (`models/book.py`)**: Mapeamento objeto-relacional com SQLAlchemy 2.0 (`Base`, `Mapped`, `mapped_column`), mantendo schemas Pydantic separados dos modelos ORM de banco.
+- **Regras de Negócio e Unicidade**: Validação de duplicidade na criação e atualização (`BookAlreadyExistsError` mapeado para `409 Conflict`) e de existência (`BookNotFoundError` mapeado para `404 Not Found`).
+- **Gerenciamento de Sessão e Configuração**: Engine configurada via variável de ambiente `DATABASE_URL` (`postgresql+psycopg://...`), com injeção de dependência FastAPI (`get_db` e `get_book_service`).
+- **Migrations com Alembic (`backend/alembic/`)**: Versionamento automatizado do banco de dados relacional com migration inicial para criação da tabela `books`.
+- **Testes com Banco Isolado**: Fixtures de integração em `conftest.py` com SQLite em memória (`StaticPool`), permitindo execução autônoma sem dependência externa no CI e na máquina local.
+- **Automação de Banco no Makefile**: Novos comandos para aplicar migrations (`db-upgrade`), desfazê-las (`db-downgrade`), inspecionar status (`db-current`, `db-history`), gerar novas migrations (`db-migration`) e acessar terminal interativo (`db-psql`).
 
 ## Endpoints de Livros (`/books`)
 
@@ -182,6 +215,12 @@ poetry run pytest -v tests/integration  # Testes de integracao
 | `make restart` | Reinicia a execução dos contêineres em atividade. |
 | `make logs` | Exibe a saída de logs agregados dos contêineres em tempo real. |
 | `make ps` | Lista os contêineres do projeto, estados de integridade e portas ativas. |
+| `make db-upgrade` | Aplica as migrations pendentes no PostgreSQL via Alembic. |
+| `make db-downgrade` | Reverte a última migration aplicada no banco. |
+| `make db-current` | Exibe o identificador da migration atual do banco de dados. |
+| `make db-history` | Lista a linha do tempo e histórico de revisões de migrations. |
+| `make db-migration MSG="desc"` | Gera uma nova migration baseada nas alterações dos models (`--autogenerate`). |
+| `make db-psql` | Abre um terminal interativo `psql` conectado ao container PostgreSQL. |
 
 ## Integração Contínua (CI)
 

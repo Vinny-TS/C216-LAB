@@ -4,7 +4,7 @@ BACKEND_DIR = backend
 COMPOSE = docker compose
 
 # O .PHONY declara quais targets não são arquivos físicos, mas sim comandos
-.PHONY: help install run clean up down restart logs ps test test-unit test-integration
+.PHONY: help install run clean up down restart logs ps test test-unit test-integration db-upgrade db-downgrade db-current db-history db-migration db-psql
 
 # O target 'help' lista os comandos disponíveis no terminal
 help:
@@ -21,6 +21,12 @@ help:
 	@echo "  make restart          - Reinicia os containers do Docker"
 	@echo "  make logs             - Exibe os logs dos containers do Docker"
 	@echo "  make ps               - Exibe o status dos containers do Docker"
+	@echo "  make db-upgrade       - Aplica as migrations pendentes (Alembic)"
+	@echo "  make db-downgrade     - Desfaz a última migration"
+	@echo "  make db-current       - Mostra a versão atual do banco"
+	@echo "  make db-history       - Lista o histórico de migrations"
+	@echo "  make db-migration MSG=\"desc\" - Gera uma nova migration"
+	@echo "  make db-psql          - Abre o psql no container do PostgreSQL"
 
 install:
 	cd $(BACKEND_DIR) && $(POETRY) install
@@ -60,3 +66,22 @@ logs:
 
 ps:
 	$(COMPOSE) ps
+
+db-upgrade:
+	$(COMPOSE) exec backend alembic upgrade head
+
+db-downgrade:
+	$(COMPOSE) exec backend alembic downgrade -1
+
+db-current:
+	$(COMPOSE) exec backend alembic current
+
+db-history:
+	$(COMPOSE) exec backend alembic history
+
+db-migration:
+	@test -n "$(MSG)$(msg)" || (echo "Uso: make db-migration MSG=\"descricao\"" && exit 1)
+	$(COMPOSE) run --rm -v "$(CURDIR)/backend/alembic/versions:/app/alembic/versions" backend alembic revision --autogenerate -m "$(if $(MSG),$(MSG),$(msg))"
+
+db-psql:
+	$(COMPOSE) exec db sh -c 'psql -U $${POSTGRES_USER:-user} -d $${POSTGRES_DB:-c216_db}'
