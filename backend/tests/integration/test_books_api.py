@@ -53,7 +53,7 @@ def test_list_books_rejects_invalid_query(client: TestClient, params: dict) -> N
 # GET /books/{book_id}
 
 
-@pytest.mark.parametrize("book_id", [1, 7, 999])
+@pytest.mark.parametrize("book_id", [1, 2, 3])
 def test_get_book_uses_path_id(client: TestClient, book_id: int) -> None:
     response = client.get(f"/books/{book_id}")
 
@@ -61,6 +61,10 @@ def test_get_book_uses_path_id(client: TestClient, book_id: int) -> None:
     body = response.json()
     assert body["id"] == book_id
     assert set(body) == BOOK_FIELDS
+
+
+def test_get_missing_book_returns_404(client: TestClient) -> None:
+    assert client.get("/books/999").status_code == 404
 
 
 @pytest.mark.parametrize("book_id", ["0", "-1", "abc"])
@@ -79,6 +83,22 @@ def test_create_book_returns_201(client: TestClient, book_payload: dict) -> None
 
     assert response.status_code == 201
     assert response.json() == {"id": NEW_BOOK_ID, **book_payload}
+
+
+def test_create_duplicate_book_returns_409(client: TestClient) -> None:
+    # Dom Casmurro de Machado de Assis já existe no seed
+    response = client.post(
+        "/books",
+        json={
+            "title": "Dom Casmurro",
+            "author": "Machado de Assis",
+            "year": 1899,
+            "pages": 256,
+            "genre": "Romance",
+            "price": 39.9,
+        },
+    )
+    assert response.status_code == 409
 
 
 @pytest.mark.parametrize("field", ["title", "author", "year", "pages", "genre", "price"])
@@ -119,14 +139,36 @@ def test_create_book_validates_fields(
 
 
 def test_replace_book_returns_sent_data(client: TestClient, book_payload: dict) -> None:
-    response = client.put("/books/5", json=book_payload)
+    response = client.put("/books/1", json=book_payload)
 
     assert response.status_code == 200
-    assert response.json() == {"id": 5, **book_payload}
+    assert response.json() == {"id": 1, **book_payload}
+
+
+def test_replace_book_missing_returns_404(client: TestClient, book_payload: dict) -> None:
+    response = client.put("/books/999", json=book_payload)
+
+    assert response.status_code == 404
+
+
+def test_replace_book_duplicate_returns_409(client: TestClient) -> None:
+    # Livro 2 tenta usar mesmo título e autor do livro 3
+    livro_3 = client.get("/books/3").json()
+    payload = {
+        "title": livro_3["title"],
+        "author": livro_3["author"],
+        "year": 2000,
+        "pages": 100,
+        "genre": "Fiction",
+        "price": 50.0,
+    }
+    response = client.put("/books/2", json=payload)
+
+    assert response.status_code == 409
 
 
 def test_replace_book_requires_full_body(client: TestClient) -> None:
-    response = client.put("/books/5", json={"price": 10.0})
+    response = client.put("/books/1", json={"price": 10.0})
 
     assert response.status_code == 422
 
@@ -148,6 +190,19 @@ def test_update_book_changes_only_sent_fields(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {**original, "genre": "Classic", "price": 25.0}
+
+
+def test_update_book_missing_returns_404(client: TestClient) -> None:
+    assert client.patch("/books/999", json={"price": 25.0}).status_code == 404
+
+
+def test_update_book_duplicate_returns_409(client: TestClient) -> None:
+    livro_1 = client.get("/books/1").json()
+    response = client.patch(
+        "/books/2",
+        json={"title": livro_1["title"], "author": livro_1["author"]},
+    )
+    assert response.status_code == 409
 
 
 def test_update_book_with_empty_body_changes_nothing(client: TestClient) -> None:
@@ -183,6 +238,12 @@ def test_delete_book_returns_204_without_body(client: TestClient) -> None:
 
     assert response.status_code == 204
     assert response.content == b""
+    # Verifica que foi realmente deletado
+    assert client.get("/books/1").status_code == 404
+
+
+def test_delete_book_missing_returns_404(client: TestClient) -> None:
+    assert client.delete("/books/999").status_code == 404
 
 
 def test_delete_book_rejects_invalid_id(client: TestClient) -> None:
@@ -190,6 +251,7 @@ def test_delete_book_rejects_invalid_id(client: TestClient) -> None:
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["path", "book_id"]
+
 
 
 # Contract
