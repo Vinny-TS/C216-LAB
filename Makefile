@@ -3,12 +3,13 @@ POETRY = poetry
 BACKEND_DIR = backend
 FRONTEND_DIR = frontend
 COMPOSE = docker compose
+E2E_COMPOSE = API_PORT=8001 FRONTEND_PORT=5174 POSTGRES_PORT=5433 VITE_API_URL=http://localhost:8001 CORS_ORIGINS=http://localhost:5174,http://127.0.0.1:5174 $(COMPOSE) -p lab-e2e
 
 # O .PHONY declara quais targets não são arquivos físicos, mas sim comandos
-.PHONY: help install run clean up down restart logs ps test test-unit test-integration \
+.PHONY: help install run clean up up-build down restart logs ps test test-unit test-integration \
 	db-upgrade db-downgrade db-current db-history db-migration db-psql \
 	frontend-install frontend-dev frontend-lint frontend-format frontend-check \
-	frontend-test frontend-test-e2e frontend-build check-all
+	frontend-test frontend-test-e2e frontend-build e2e check-all
 
 # O target 'help' lista os comandos disponíveis no terminal
 help:
@@ -21,6 +22,7 @@ help:
 	@echo "  make test-integration  - Executa apenas os testes de integracao"
 	@echo "  make clean             - Limpa caches e arquivos temporários"
 	@echo "  make up                - Inicia os containers do Docker"
+	@echo "  make up-build          - Reconstroi as imagens e inicia os containers"
 	@echo "  make down              - Para os containers do Docker"
 	@echo "  make restart           - Reinicia os containers do Docker"
 	@echo "  make logs              - Exibe os logs dos containers do Docker"
@@ -37,9 +39,10 @@ help:
 	@echo "  make frontend-format   - Aplica formatacao no frontend (Biome)"
 	@echo "  make frontend-check    - Valida lint e formatacao no frontend (Biome)"
 	@echo "  make frontend-test     - Executa testes unitarios e de integracao (Vitest)"
-	@echo "  make frontend-test-e2e - Executa testes E2E (Playwright)"
+	@echo "  make frontend-test-e2e - Executa testes E2E contra stack no ar (Playwright)"
 	@echo "  make frontend-build    - Gera build de producao do frontend"
-	@echo "  make check-all         - Executa validacoes completas (backend + frontend)"
+	@echo "  make e2e               - Executa E2E full-stack em stack Docker isolada"
+	@echo "  make check-all         - Executa validacoes completas (backend + frontend + E2E)"
 
 install:
 	cd $(BACKEND_DIR) && $(POETRY) install
@@ -69,6 +72,9 @@ clean:
 	rm -rf $(FRONTEND_DIR)/test-results
 
 up:
+	$(COMPOSE) up -d
+
+up-build:
 	$(COMPOSE) up -d --build
 
 down:
@@ -126,4 +132,8 @@ frontend-test-e2e:
 frontend-build:
 	npm --prefix $(FRONTEND_DIR) run build
 
-check-all: frontend-check frontend-test frontend-build frontend-test-e2e
+e2e:
+	$(E2E_COMPOSE) up -d --build --wait
+	$(E2E_COMPOSE) exec -T backend alembic upgrade head && E2E_BASE_URL=http://localhost:5174 npm --prefix $(FRONTEND_DIR) run test:e2e; status=$$?; $(E2E_COMPOSE) down -v; exit $$status
+
+check-all: test frontend-check frontend-test frontend-build e2e
