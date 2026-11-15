@@ -5,6 +5,8 @@ MAX_YEAR = 2100
 
 
 class BookBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     title: str = Field(min_length=1, max_length=200, examples=["Dom Casmurro"])
     author: str = Field(min_length=1, max_length=100, examples=["Machado de Assis"])
     year: int = Field(ge=MIN_YEAR, le=MAX_YEAR, examples=[1899])
