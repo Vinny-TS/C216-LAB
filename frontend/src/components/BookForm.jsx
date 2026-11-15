@@ -9,21 +9,31 @@ export function BookForm({ onAdd }) {
   const [genre, setGenre] = useState("");
   const [price, setPrice] = useState("");
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
+    setSubmitError("");
     const result = validateBook({ title, author, year, pages, genre, price });
     setErrors(result.errors);
     if (Object.keys(result.errors).length > 0) return;
 
-    onAdd(result.values);
-    setTitle("");
-    setAuthor("");
-    setYear("");
-    setPages("");
-    setGenre("");
-    setPrice("");
-    setErrors({});
+    setSubmitting(true);
+    try {
+      await onAdd(result.values);
+      setTitle("");
+      setAuthor("");
+      setYear("");
+      setPages("");
+      setGenre("");
+      setPrice("");
+      setErrors({});
+    } catch (error) {
+      setSubmitError(error?.message || "Erro ao cadastrar o livro.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -194,9 +204,16 @@ export function BookForm({ onAdd }) {
         </div>
       </div>
 
+      {submitError && (
+        <p role="alert" className="text-sm text-red-700">
+          {submitError}
+        </p>
+      )}
+
       <button
         type="submit"
-        className="w-full rounded bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 sm:w-auto"
+        disabled={submitting}
+        className="w-full rounded bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
         Adicionar
       </button>
